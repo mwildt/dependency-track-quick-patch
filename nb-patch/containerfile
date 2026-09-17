@@ -1,0 +1,36 @@
+FROM docker.io/dependencytrack/apiserver:4.14.4 as dependencytrack
+
+RUN ls -l /opt/owasp/dependency-track/
+
+FROM registry.suse.com/bci/openjdk-devel:21 as patch
+
+RUN mkdir /ws
+WORKDIR /ws
+
+COPY --from=dependencytrack \
+    /opt/owasp/dependency-track/dependency-track-apiserver.jar \
+    ./dependency-track-apiserver.jar
+
+ADD patch ./patch/
+
+RUN jar --update \
+    --file dependency-track-apiserver.jar \
+    -C patch .
+
+
+#RUN mkdir target
+#RUN cd target && jar -xf ../dependency-track-apiserver.jar
+#RUN ls -l target/WEB-INF/classes/org/dependencytrack/resources/v1/
+#RUN cp -R patch/. target/WEB-INF/classes/
+#RUN ls -l target/WEB-INF/classes/org/dependencytrack/resources/v1/
+#RUN jar -cf dependency-track-apiserver.nb-patch.jar -C target .
+#RUN pwd
+#RUN ls -l
+#RUN ls -l ./target
+
+FROM docker.io/dependencytrack/apiserver:4.14.4
+
+COPY --chown=dtrack:root \
+  --from=patch \
+  /ws/dependency-track-apiserver.jar \
+  /opt/owasp/dependency-track/dependency-track-apiserver.jar
